@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: nexus
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        - name: notification-service
+          image: ghcr.io/kritsn/nexus-notification-service:latest
+          ports:
+            - containerPort: 8087
+          env:
+            - name: EUREKA_URI
+              value: "http://discovery-server:8761/eureka"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8087
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8087
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: nexus
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - port: 8087
+      targetPort: 8087

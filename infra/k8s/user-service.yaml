@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: nexus
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        - name: user-service
+          image: ghcr.io/kritsn/nexus-user-service:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: DB_HOST
+              value: "postgres"
+            - name: DB_NAME
+              value: "nexus_user"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-db
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-db
+                  key: POSTGRES_PASSWORD
+            - name: EUREKA_URI
+              value: "http://discovery-server:8761/eureka"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-jwt
+                  key: JWT_SECRET
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              memory: "768Mi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: nexus
+spec:
+  selector:
+    app: user-service
+  ports:
+    - port: 8081
+      targetPort: 8081

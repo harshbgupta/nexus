@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexus-postgres-init
+  namespace: nexus
+data:
+  init-databases.sh: |
+    #!/bin/bash
+    set -e
+    for db in nexus_user nexus_catalog nexus_pricing nexus_inventory nexus_order nexus_payment; do
+      psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
+        CREATE DATABASE $db;
+    EOSQL
+    done
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: nexus
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: nexus
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-db
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-db
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              memory: "512Mi"
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\""]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: init-script
+          configMap:
+            name: nexus-postgres-init
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi

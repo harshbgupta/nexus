@@ -1,0 +1,21 @@
+server:
+  port: 8761
+
+spring:
+  application:
+    name: discovery-server
+
+eureka:
+  client:
+    # A Eureka server doesn't need to register with or fetch registry from itself.
+    register-with-eureka: false
+    fetch-registry: false
+  server:
+    # Faster eviction of dead instances for local dev; keep default (90s) in real prod.
+    eviction-interval-timer-in-ms: 5000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

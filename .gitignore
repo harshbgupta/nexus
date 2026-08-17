@@ -1,0 +1,75 @@
+# -------- Maven --------
+target/
+*.class
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# -------- Maven Wrapper (DO NOT IGNORE) --------
+# Keep mvnw, mvnw.cmd, and .mvn/wrapper/** in git
+
+# IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.idea/modules.xml
+.idea/jarRepositories.xml
+.idea/compiler.xml
+.idea/libraries/
+
+# VS Code
+.vscode/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+.apt_generated
+.factorypath
+.settings
+.springBeans
+.sts4-cache
+
+# OS
+.DS_Store
+Thumbs.db
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+##log filee
+*log.json*
+*.log*
+*.log
+logs/
+
+# Environment / secrets — never commit real credentials
+.env
+.env.local
+*.pem
+*.key
+
+# Local-only Spring config overrides
+application-local.yml
+application-local.properties
+
+# Local docker-compose overrides
+docker-compose.override.yml

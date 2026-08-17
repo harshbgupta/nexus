@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: nexus
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        - name: inventory-service
+          image: ghcr.io/kritsn/nexus-inventory-service:latest
+          ports:
+            - containerPort: 8084
+          env:
+            - name: DB_HOST
+              value: "postgres"
+            - name: DB_NAME
+              value: "nexus_inventory"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-db
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-db
+                  key: POSTGRES_PASSWORD
+            - name: EUREKA_URI
+              value: "http://discovery-server:8761/eureka"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              memory: "768Mi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8084
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8084
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  namespace: nexus
+spec:
+  selector:
+    app: inventory-service
+  ports:
+    - port: 8084
+      targetPort: 8084

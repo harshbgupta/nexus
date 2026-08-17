@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: nexus
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        - name: gateway
+          image: ghcr.io/kritsn/nexus-gateway:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: EUREKA_URI
+              value: "http://discovery-server:8761/eureka"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: nexus
+spec:
+  type: LoadBalancer
+  selector:
+    app: gateway
+  ports:
+    - port: 8080
+      targetPort: 8080

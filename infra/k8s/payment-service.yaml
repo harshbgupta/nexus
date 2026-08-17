@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: nexus
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        - name: payment-service
+          image: ghcr.io/kritsn/nexus-payment-service:latest
+          ports:
+            - containerPort: 8086
+          env:
+            - name: DB_HOST
+              value: "postgres"
+            - name: DB_NAME
+              value: "nexus_payment"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-db
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-db
+                  key: POSTGRES_PASSWORD
+            - name: EUREKA_URI
+              value: "http://discovery-server:8761/eureka"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              memory: "768Mi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8086
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8086
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: nexus
+spec:
+  selector:
+    app: payment-service
+  ports:
+    - port: 8086
+      targetPort: 8086

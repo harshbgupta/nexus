@@ -1,0 +1,194 @@
+services:
+
+  postgres:
+    image: postgres:17
+    container_name: nexus-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus
+
+    ports:
+      # Host-side 5434: keeps this stack out of the way of CareerPilot AI's
+      # postgres (5433) and any host postgres (5432).
+      - "5434:5432"
+
+    volumes:
+      - nexus_pg_data:/var/lib/postgresql/data
+      # Runs once on first container start — creates one database per
+      # service (nexus_user, nexus_catalog, ...); see init-databases.sh.
+      - ./init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U nexus" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  discovery-server:
+    build:
+      context: ../..
+      dockerfile: discovery-server/Dockerfile
+    container_name: nexus-discovery-server
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health | grep -q UP" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build:
+      context: ../..
+      dockerfile: gateway/Dockerfile
+    container_name: nexus-gateway
+    restart: unless-stopped
+    environment:
+      EUREKA_URI: http://discovery-server:8761/eureka
+    ports:
+      - "8080:8080"
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+
+  user-service:
+    build:
+      context: ../..
+      dockerfile: user-service/Dockerfile
+    container_name: nexus-user-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_NAME: nexus_user
+      DB_USERNAME: nexus
+      DB_PASSWORD: nexus
+      EUREKA_URI: http://discovery-server:8761/eureka
+      JWT_SECRET: change-this-secret-in-real-deployment-please-0123456789
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+
+  catalog-service:
+    build:
+      context: ../..
+      dockerfile: catalog-service/Dockerfile
+    container_name: nexus-catalog-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_NAME: nexus_catalog
+      DB_USERNAME: nexus
+      DB_PASSWORD: nexus
+      EUREKA_URI: http://discovery-server:8761/eureka
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+
+  pricing-service:
+    build:
+      context: ../..
+      dockerfile: pricing-service/Dockerfile
+    container_name: nexus-pricing-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_NAME: nexus_pricing
+      DB_USERNAME: nexus
+      DB_PASSWORD: nexus
+      EUREKA_URI: http://discovery-server:8761/eureka
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+
+  inventory-service:
+    build:
+      context: ../..
+      dockerfile: inventory-service/Dockerfile
+    container_name: nexus-inventory-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_NAME: nexus_inventory
+      DB_USERNAME: nexus
+      DB_PASSWORD: nexus
+      EUREKA_URI: http://discovery-server:8761/eureka
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+
+  order-service:
+    build:
+      context: ../..
+      dockerfile: order-service/Dockerfile
+    container_name: nexus-order-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_NAME: nexus_order
+      DB_USERNAME: nexus
+      DB_PASSWORD: nexus
+      EUREKA_URI: http://discovery-server:8761/eureka
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+
+  payment-service:
+    build:
+      context: ../..
+      dockerfile: payment-service/Dockerfile
+    container_name: nexus-payment-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_NAME: nexus_payment
+      DB_USERNAME: nexus
+      DB_PASSWORD: nexus
+      EUREKA_URI: http://discovery-server:8761/eureka
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: ../..
+      dockerfile: notification-service/Dockerfile
+    container_name: nexus-notification-service
+    restart: unless-stopped
+    environment:
+      EUREKA_URI: http://discovery-server:8761/eureka
+    ports:
+      - "8087:8087"
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+
+volumes:
+  nexus_pg_data:
+    name: nexus_pg_data

@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-service
+  namespace: nexus
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: catalog-service
+  template:
+    metadata:
+      labels:
+        app: catalog-service
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        - name: catalog-service
+          image: ghcr.io/kritsn/nexus-catalog-service:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: DB_HOST
+              value: "postgres"
+            - name: DB_NAME
+              value: "nexus_catalog"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-db
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-db
+                  key: POSTGRES_PASSWORD
+            - name: EUREKA_URI
+              value: "http://discovery-server:8761/eureka"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              memory: "768Mi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8082
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-service
+  namespace: nexus
+spec:
+  selector:
+    app: catalog-service
+  ports:
+    - port: 8082
+      targetPort: 8082
